@@ -49,3 +49,37 @@ def encrypt():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+
+
+
+
+
+def layer3_decrypt(state, K3):
+    return [((b ^ K3[i % len(K3)]) - K3[i % len(K3)]) % 256 for i, b in enumerate(state)]
+
+def layer2_decrypt(state, K2):
+    state = [b ^ K2[i % len(K2)] for i, b in enumerate(state)]
+    return state[::-1]
+
+def layer1_decrypt(state, K1):
+    return [inverse_SBOX[b ^ K1[i % len(K1)]] for i, b in enumerate(state)]
+
+def xycrypt_decrypt(ciphertext_hex, user_key):
+    state = [int(ciphertext_hex[i:i+2], 16) for i in range(0, len(ciphertext_hex), 2)]
+    K1, K2, K3 = expand_key(user_key)
+    state = layer3_decrypt(state, K3)
+    state = layer2_decrypt(state, K2)
+    state = layer1_decrypt(state, K1)
+    return ''.join(chr(b) for b in state)
+
+@app.route('/decrypt', methods=['POST'])
+def decrypt():
+    data = request.json
+    ciphertext = data.get('ciphertext')
+    key = data.get('key')
+    if not ciphertext or not key:
+        return jsonify({'error': 'Provide ciphertext and key'}), 400
+    plaintext = xycrypt_decrypt(ciphertext, key)
+    return jsonify({'plaintext': plaintext})
+
